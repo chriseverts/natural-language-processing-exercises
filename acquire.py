@@ -7,21 +7,56 @@ import pandas as pd
 
 
 
-######### Functions ###########
-
-def create_article_text(url,user_agent, class_, name_article):
-    headers = {"User-Agent": str(user_agent)}
-    response = get(url, headers =headers)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    title = soup.select('.jupiterx-post-title')[0].text
-    content = soup.select('.jupiterx-post-content')[0].text
-    article = soup.find('div', class_ = str(class_))
+def get_codeup_blog(url):
     
-    with open(str(name_article), 'w') as f:
-        f = f.write(article.text)
-    return f
-#############
+    # Set the headers to show as Netscape Navigator on Windows 98, b/c I feel like creating an anomaly in the logs
+    headers = {"User-Agent": "Mozilla/4.5 (compatible; HTTrack 3.0x; Windows 98)"}
 
+    # Get the http response object from the server
+    response = get(url, headers=headers)
+    
+    soup = BeautifulSoup(response.text, features="lxml")
+    
+    title = soup.find("h1").text
+    published_date = soup.time.text
+    
+    if len(soup.select(".jupiterx-post-image")) > 0:
+        blog_image = soup.select(".jupiterx-post-image")[0].picture.img["data-src"]
+    else:
+        blog_image = None
+        
+    content = soup.select(".jupiterx-post-content")[0].text
+    
+    output = {}
+    output["title"] = title
+    output["published_date"] = published_date
+    output["blog_image"] = blog_image
+    output["content"] = content
+    
+    return output
+
+
+def get_blog_articles(urls):
+    # List of dictionaries
+    posts = [get_codeup_blog(url) for url in urls]
+    
+    return pd.DataFrame(posts)
+
+
+def acquire_codeup_blog():
+	urls = [
+	    "https://codeup.com/codeups-data-science-career-accelerator-is-here/",
+	    "https://codeup.com/data-science-myths/",
+	    "https://codeup.com/data-science-vs-data-analytics-whats-the-difference/",
+	    "https://codeup.com/10-tips-to-crush-it-at-the-sa-tech-job-fair/",
+	    "https://codeup.com/competitor-bootcamps-are-closing-is-the-model-in-danger/"
+	]
+
+	return get_blog_articles(urls)
+
+
+
+# Inshort article
 def get_article(article, category):
     # Attribute selector
     title = article.select("[itemprop='headline']")[0].text
@@ -35,26 +70,28 @@ def get_article(article, category):
     output["category"] = category
     
     return output
-        
-  #####################
 
-def get_articles(category, base ="https://inshorts.com/en/read/"):
+
+
+
+def get_articles(category):
     """
     This function takes in a category as a string. Category must be an available category in inshorts
     Returns a list of dictionaries where each dictionary represents a single inshort article
     """
+    base = "https://inshorts.com/en/read/"
     
     # We concatenate our base_url with the category
     url = base + category
     
-    # Set the headers
-    headers = {"User-Agent": "Mozilla/4.5 (compatible; HTTrack 3.0x; Windows 98)"}
+    # Set the headers to shows me as a DS guy
+    headers = {"User-Agent": "Data Science Nut)"}
 
     # Get the http response object from the server
     response = get(url, headers=headers)
 
     # Make soup out of the raw html
-    soup = BeautifulSoup(response.text)
+    soup = BeautifulSoup(response.text, features="lxml")
     
     # Ignore everything, focusing only on the news cards
     articles = soup.select(".news-card")
@@ -72,10 +109,7 @@ def get_articles(category, base ="https://inshorts.com/en/read/"):
     
     # Return the list of dictionaries
     return output
-
-#######
-
-
+    
 
 def get_all_news_articles(categories):
     """
@@ -93,35 +127,6 @@ def get_all_news_articles(categories):
     return df
 
 
-
-def get_codeup_blog(url):
-    '''
-    creating a function which will extract title, images, content and dates from web blog.
-    '''
-    headers = {"User-Agent": "Mozilla/4.5 (compatible; HTTrack 3.0x; Windows 98)"}
-    
-    #requesting the content of the web page.
-    response = get(url, headers = headers)
-    #utilizing beautiful soup in which to get it in a condition to work with.Allow us to navigate the html data
-    soup = BeautifulSoup(response.content, 'html.parser')
-    #utilizing soup.find to get the title, in this case h1 is unique for each blog so we can use this to 
-    #specify the title
-    title = soup.find('h1').text
-    #utilizing soup to select the content of the blog in this case taking in CSS select as a string 
-    # and returning elements matching elements
-    content = soup.select('.jupiterx-post-content')[0].text
-    #utilize soup which has .time which can be utilized to get the publish date
-    publish_date = soup.time.text
-    #stating if the count of the images > 0 then 
-    if len(soup.select('.jupitex-post-image')) > 0:
-        blog_image = soup.select('.jupiterx-post-image')[0].picture.img['data-src']
-    else:
-        blog_image = none
-        
-    dictionary = {}
-    dictionary['title'] = title
-    dictionary['content'] = content
-    dictionary['publish_date'] = publish_date
-    dictionary['blog_image'] = blog_image
-    
-    return dictionary
+def acquire_news_articles():
+	categories = ["business", "sports", "technology", "entertainment", "science", "world"]
+	return get_all_news_articles(categories)
